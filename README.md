@@ -11,6 +11,7 @@ Hệ thống quản lý thư viện trọn gói: quản lý đầu sách và t�
 ## Mục lục
 
 - [Tính năng và điểm nổi bật](#tính-năng-và-điểm-nổi-bật)
+- [Chống mượn trùng sách khi nhiều người mượn cùng lúc](#chống-mượn-trùng-sách-khi-nhiều-người-mượn-cùng-lúc)
 - [Công nghệ sử dụng](#công-nghệ-sử-dụng)
 - [Kiến trúc](#kiến-trúc)
 - [Triển khai bằng Docker](#triển-khai-bằng-docker)
@@ -28,7 +29,7 @@ Hệ thống quản lý thư viện trọn gói: quản lý đầu sách và t�
 | Chủ đề | Nội dung |
 |---|---|
 | **Chuẩn hóa schema** | Mỗi bản sao vật lý của sách là một dòng trong `book_copies`, không đếm `total_copies`/`available_copies` thô trong bảng `books`. Quan hệ nhiều-nhiều sách–tác giả qua `book_authors`, danh mục phân cấp qua `parent_id`. |
-| **Concurrency control** | Nghiệp vụ mượn sách chạy trong một transaction ở tầng DB với `SELECT ... FOR UPDATE SKIP LOCKED`. Test đồng thời 10 request mượn cùng 1 bản sao cuối cùng: đúng 1 thành công (`201`), 9 request còn lại nhận `409`, không có lỗi 500 hay deadlock. |
+| **Chống mượn trùng sách** | Khi nhiều người bấm mượn cùng lúc cho cuốn sách chỉ còn 1 bản, hệ thống đảm bảo chỉ 1 người mượn được, những người còn lại nhận thông báo hết sách. Xem giải thích ở mục [Chống mượn trùng sách khi nhiều người mượn cùng lúc](#chống-mượn-trùng-sách-khi-nhiều-người-mượn-cùng-lúc). |
 | **Trigger** | Cập nhật trạng thái bản sao khi mượn/trả, ghi audit log cho `books` và `loans`, tự cập nhật `search_vector` cho tìm kiếm toàn văn. |
 | **View / Materialized view** | `v_top_borrowed_books`, `v_overdue_loans`, `v_active_members`, `mv_monthly_stats`. |
 | **Index** | GIN full-text search (`idx_books_search`), partial index cho phiếu mượn đang mở (`idx_loans_open`), cùng các index theo danh mục, độc giả, trạng thái bản sao. Có kết quả `EXPLAIN ANALYZE` trong [docs/BENCHMARKS.md](docs/BENCHMARKS.md). |
@@ -36,6 +37,23 @@ Hệ thống quản lý thư viện trọn gói: quản lý đầu sách và t�
 | **Xác thực & phân quyền** | JWT access/refresh token, hai vai trò `admin` và `member`. Độc giả tự mượn/trả sách (self-service). |
 | **Thông báo realtime** | Admin nhận thông báo qua WebSocket khi độc giả tự mượn sách. |
 | **Tái lập DB từ đầu** | Toàn bộ trigger, function, view và index được định nghĩa trong Alembic migration; `alembic upgrade head` trên DB rỗng dựng lại đầy đủ schema. |
+
+## Chống mượn trùng sách khi nhiều người mượn cùng lúc
+
+**Vấn đề.** Thư viện còn đúng 1 cuốn "Foundation". Hai độc giả A và B cùng bấm "Mượn" trong cùng một khoảnh khắc. Nếu hệ thống chỉ làm theo kiểu "xem còn sách không, còn thì cho mượn", cả hai đều thấy "còn 1 cuốn" và cả hai đều mượn được. Kết quả là một cuốn sách được cho hai người mượn.
+
+**Cách hệ thống giải quyết.** Mỗi cuốn sách vật lý là một dòng riêng trong bảng `book_copies`. Khi có yêu cầu mượn, cơ sở dữ liệu tìm một bản sao còn rảnh và **khoá dòng đó lại** cho đến khi việc mượn hoàn tất. Người đến sau không chờ và không tranh cùng một dòng: họ bỏ qua dòng đang bị khoá, tìm bản sao khác, và nếu không còn bản nào thì nhận thông báo hết sách.
+
+```
+A và B cùng bấm "Mượn" (còn 1 bản sao)
+
+  A ──► khoá bản sao #1 ──► tạo phiếu mượn ──► xong        ──► thành công
+  B ──► bản sao #1 đang bị khoá, bỏ qua ──► không còn bản nào ──► báo "hết sách"
+```
+
+**Cách làm kỹ thuật.** Toàn bộ các bước (tìm bản sao, khoá, tạo phiếu, đổi trạng thái) nằm trong một transaction ở tầng cơ sở dữ liệu, dùng `SELECT ... FOR UPDATE SKIP LOCKED` của PostgreSQL. Việc chống trùng do database đảm bảo, không dựa vào code ứng dụng, nên vẫn đúng dù chạy nhiều tiến trình backend cùng lúc. Mã nguồn nằm ở [backend/app/services/loans.py](backend/app/services/loans.py).
+
+**Kết quả kiểm chứng.** Test tự động gửi 10 yêu cầu mượn cùng lúc cho một cuốn sách chỉ còn 1 bản. Kết quả: đúng 1 yêu cầu thành công (`201`), 9 yêu cầu còn lại nhận `409` (hết sách), không có lỗi hệ thống hay treo. Chạy lại bằng lệnh ở mục [Kiểm thử](#kiểm-thử).
 
 ## Công nghệ sử dụng
 
@@ -62,7 +80,7 @@ Hệ thống quản lý thư viện trọn gói: quản lý đầu sách và t�
                                        └──────────────┘
 ```
 
-Toàn bộ logic nghiệp vụ nằm ở backend; logic tương tranh nằm trong transaction ở tầng DB chứ không chỉ ở tầng ứng dụng. Chi tiết xem [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Toàn bộ logic nghiệp vụ nằm ở backend; việc chống mượn trùng sách được database đảm bảo bằng transaction chứ không chỉ dựa vào code ứng dụng. Chi tiết xem [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Triển khai bằng Docker
 
@@ -228,13 +246,13 @@ Chạy trong container backend (stack cần đang chạy và đã migrate + seed
 docker compose exec backend pytest -v
 ```
 
-Chỉ chạy test tương tranh (kiểm chứng cơ chế khoá khi mượn sách):
+Chỉ chạy test mượn sách đồng thời (10 yêu cầu cùng lúc cho 1 bản sao cuối cùng):
 
 ```bash
 docker compose exec backend pytest tests/test_concurrency.py -v
 ```
 
-Bộ test gồm: CRUD và tìm kiếm sách, mượn/trả sách, **10 request đồng thời tranh 1 bản sao cuối cùng**, và phân quyền self-service của độc giả. Test tự dọn dữ liệu phát sinh sau mỗi phiên chạy.
+Bộ test gồm: CRUD và tìm kiếm sách, mượn/trả sách, **10 yêu cầu mượn đồng thời cho 1 bản sao cuối cùng**, và phân quyền self-service của độc giả. Test tự dọn dữ liệu phát sinh sau mỗi phiên chạy.
 
 ## Thiết kế CSDL
 
@@ -286,7 +304,7 @@ QLTV/
 │   │   ├── cache/         # Redis client, cache-aside
 │   │   └── seed.py        # Dữ liệu mẫu
 │   ├── migrations/        # Alembic (schema, trigger, view, index)
-│   ├── tests/             # pytest, gồm test concurrency
+│   ├── tests/             # pytest, gồm test mượn sách đồng thời
 │   └── Dockerfile
 ├── frontend/              # React + Vite + TypeScript + shadcn/ui
 ├── docs/                  # ARCHITECTURE, DATABASE, BENCHMARKS
@@ -300,7 +318,7 @@ QLTV/
 - [library-system-spec.md](library-system-spec.md): đặc tả và phân tích hệ thống
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): kiến trúc hệ thống
 - [docs/DATABASE.md](docs/DATABASE.md): thiết kế CSDL, chiến lược khoá
-- [docs/BENCHMARKS.md](docs/BENCHMARKS.md): kết quả `EXPLAIN ANALYZE`, test tương tranh, cache
+- [docs/BENCHMARKS.md](docs/BENCHMARKS.md): kết quả `EXPLAIN ANALYZE`, test mượn sách đồng thời, cache
 
 ## Xử lý sự cố
 
