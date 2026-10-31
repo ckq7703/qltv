@@ -1,13 +1,16 @@
+# Tìm sách theo đúng tên (qua API tìm kiếm).
 def _find_book(client, title):
     books = client.get("/books", params={"search": title, "page_size": 100}).json()["items"]
     return next(b for b in books if b["title"] == title)
 
 
+# Tìm thành viên theo đúng email.
 def _find_member(client, admin_headers, email):
     members = client.get("/members", params={"search": email, "page_size": 100}).json()["items"]
     return next(m for m in members if m["email"] == email)
 
 
+# Luồng cơ bản: admin mượn hộ -> phiếu chưa có ngày trả -> trả sách -> có ngày trả.
 def test_borrow_and_return_flow(client, admin_headers):
     book = _find_book(client, "Dế Mèn phiêu lưu ký")
     member = _find_member(client, admin_headers, "thib@example.com")
@@ -26,6 +29,7 @@ def test_borrow_and_return_flow(client, admin_headers):
     assert return_resp.json()["returned_at"] is not None
 
 
+# Lọc phiếu quá hạn (view v_overdue_loans) phải thấy phiếu quá hạn do seed tạo.
 def test_overdue_loans_endpoint(client, admin_headers):
     resp = client.get("/loans", params={"status": "overdue"}, headers=admin_headers)
     assert resp.status_code == 200
@@ -33,11 +37,13 @@ def test_overdue_loans_endpoint(client, admin_headers):
     assert resp.json()["total"] >= 1
 
 
+# Xem danh sách phiếu mượn mà chưa đăng nhập phải bị từ chối.
 def test_loans_requires_auth(client):
     resp = client.get("/loans")
     assert resp.status_code in (401, 403)
 
 
+# Mượn đủ 3 cuốn rồi mượn cuốn thứ 4 -> phải bị 409; cuối test trả lại sách để dọn.
 def test_borrow_limit_enforced(client, admin_headers):
     member = _find_member(client, admin_headers, "vanc@example.com")
     titles = [

@@ -245,6 +245,15 @@ QLTV/
 - [x] **Đã test**: `pytest` 15/15 pass; `tsc -b` + `oxlint` sạch; xác nhận qua API thật qua proxy `/api` (list authors, list/patch copies, patch bị chặn 409 khi copy đang borrowed, search loans theo tên sách "clean" và tên member "A" đều trả đúng kết quả)
 - [ ] **Chưa làm** (cân nhắc bỏ qua vì không phải trọng tâm chấm điểm CSDL): nút Filters/Columns kiểu popover cho Members/Loans/Categories; checkbox bulk-select trên bảng; xác minh trực quan trên trình duyệt thật (môi trường này không có browser tool)
 
+### Phase 14 — Audit Log trên giao diện admin + ghi `changed_by` ✅ DONE
+(người dùng hỏi "phần audit log chưa có trên giao diện admin à" → làm cả mức tối thiểu lẫn đầy đủ)
+- [x] **Migration `0006_audit_changed_by.py`**: tạo lại `fn_audit_books`/`fn_audit_loans` để điền `audit_log.changed_by` từ biến phiên `app.user_id` (`NULLIF(current_setting('app.user_id', true), '')`); thêm index `idx_audit_log_changed_at (changed_at DESC, id DESC)` và `idx_audit_log_table_row (table_name, row_id)`. Không đổi cột/bảng của schema chuẩn hóa. `downgrade()` khôi phục hàm gốc của 0002, đã thử round-trip downgrade/upgrade
+- [x] **Backend**: `app/deps.py` thêm `audited_claims` / `audited_admin` — chạy `set_config('app.user_id', <user id>, true)` (local theo transaction, không rò sang request khác trong pool). Dùng cho `POST/PUT/DELETE /books` và `POST /loans/borrow`, `POST /loans/{id}/return`. Thêm `GET /audit-logs` (chỉ admin; lọc `table_name`, `operation`, `row_id`, `date_from`, `date_to`; phân trang; LEFT JOIN `users` để trả `changed_by_username`)
+- [x] **Frontend**: trang `AuditLogPage` (`/audit-log`, mục "Audit Log" trong nhóm Management) — bộ lọc bảng/hành động, cột "Changes" tóm tắt trường đổi, bấm dòng để xem JSON Before/After
+- [x] **Test**: `tests/test_audit_log.py` (3 test: admin tạo/sửa sách được ghi đúng người; member tự mượn/trả ghi đúng member; chỉ admin xem được) — `pytest` 18/18 pass, `tsc -b` sạch
+- Lưu ý: thay đổi không qua API (seed, SQL tay) vẫn có `changed_by = NULL`, trang hiển thị là "System". Các endpoint ghi vào `books`/`loans` mà thêm sau này phải dùng `audited_claims`/`audited_admin` thì mới có người thực hiện
+- [ ] Chưa xác minh trực quan trên trình duyệt thật (không có browser tool trong session này)
+
 ## Cách cập nhật file này
 - Sau khi hoàn thành công việc trong 1 phase (dù chỉ một phần), tick checkbox tương ứng ngay, không đợi xong hoàn toàn phase mới cập nhật.
 - Luôn cập nhật mục "Trạng thái hiện tại" ở đầu file trước khi kết thúc session.

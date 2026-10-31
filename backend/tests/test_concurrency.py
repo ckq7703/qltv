@@ -8,6 +8,8 @@ from concurrent.futures import ThreadPoolExecutor
 N_CONCURRENT_REQUESTS = 10
 
 
+# Kịch bản: 10 độc giả cùng lúc mượn cuốn sách chỉ còn 1 bản sao.
+# Kỳ vọng: đúng 1 request thành công (201), 9 request còn lại bị 409, không có lỗi 500.
 def test_concurrent_borrow_last_copy_only_one_succeeds(client, admin_headers):
     # Tự tạo 1 sách riêng chỉ với đúng 1 bản sao — tránh phụ thuộc dữ liệu seed
     # dùng chung với các test khác (từng gây flaky khi seed bị chỉnh tay lúc debug).
@@ -38,6 +40,7 @@ def test_concurrent_borrow_last_copy_only_one_succeeds(client, admin_headers):
         assert resp.status_code in (201,), resp.text
         member_ids.append(resp.json()["id"])
 
+    # Bắn 10 request song song bằng 10 thread để mô phỏng tranh chấp thật
     def _borrow(member_id):
         return client.post(
             "/loans/borrow",

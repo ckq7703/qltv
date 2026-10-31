@@ -15,6 +15,8 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+# Tạo trigger cập nhật search_vector và các index tăng tốc truy vấn
+# (kết quả đo EXPLAIN ANALYZE xem docs/BENCHMARKS.md).
 def upgrade() -> None:
     # Trigger to keep books.search_vector in sync with title (full-text search source).
     op.execute(
@@ -35,10 +37,15 @@ def upgrade() -> None:
         """
     )
 
+    # GIN: index chuyên cho full-text search trên search_vector
     op.execute("CREATE INDEX idx_books_search ON books USING GIN (search_vector);")
+    # Lọc sách theo thể loại
     op.execute("CREATE INDEX idx_books_category ON books (category_id);")
+    # Tìm bản sao còn rảnh của một sách (truy vấn ở services/loans.borrow_book)
     op.execute("CREATE INDEX idx_copies_book_status ON book_copies (book_id, status);")
+    # Tra phiếu mượn theo độc giả
     op.execute("CREATE INDEX idx_loans_member ON loans (member_id);")
+    # Partial index: chỉ index các phiếu chưa trả, nhỏ và nhanh cho truy vấn "đang mượn"
     op.execute(
         "CREATE INDEX idx_loans_open ON loans (book_copy_id) WHERE returned_at IS NULL;"
     )

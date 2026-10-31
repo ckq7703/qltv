@@ -14,6 +14,7 @@ from app.cache.redis_client import redis_client
 NOTIFY_CHANNEL = "notifications:admin"
 
 
+# Publish thông báo "member vừa mượn sách" lên kênh Redis để admin nhận qua WebSocket.
 def notify_book_borrowed(
     *, loan_id: int, book_title: str, member_name: str, due_date: datetime
 ) -> None:

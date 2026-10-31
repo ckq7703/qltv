@@ -1,3 +1,5 @@
+# Endpoint upload ảnh bìa sách (chỉ admin). File lưu ở app/static/covers/
+# và được phục vụ tại /static/covers/... (xem main.py).
 import uuid
 from pathlib import Path
 
@@ -15,6 +17,8 @@ ALLOWED_CONTENT_TYPES = {"image/png", "image/jpeg", "image/webp", "image/gif"}
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5MB — đủ cho ảnh bìa sách, tránh lạm dụng lưu trữ local.
 
 
+# Nhận 1 file ảnh, kiểm tra loại (422 nếu không phải ảnh) và dung lượng (413 nếu quá 5MB),
+# lưu với tên ngẫu nhiên (uuid) để không trùng, trả về URL để gán vào cover_url của sách.
 @router.post("/cover")
 async def upload_cover(
     file: UploadFile, _admin: dict = Depends(require_admin)

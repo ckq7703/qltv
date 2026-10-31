@@ -8,6 +8,11 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base
 
 
+# Nhật ký thay đổi của bảng books và loans. Do TRIGGER trong DB tự ghi
+# (fn_audit_books, fn_audit_loans ở migration 0002), code Python chỉ đọc.
+# old_data / new_data là ảnh chụp dòng trước và sau khi sửa (NULL khi INSERT / DELETE).
+# changed_by là id người dùng (dạng chuỗi) do trigger đọc từ biến phiên 'app.user_id'
+# (backend gán, xem app/deps.py); NULL khi thay đổi không đi qua API (seed, SQL tay).
 class AuditLog(Base):
     __tablename__ = "audit_log"
 

@@ -49,17 +49,20 @@ def _cleanup_test_artifacts() -> None:
         db.close()
 
 
+# Tự chạy một lần sau khi toàn bộ test kết thúc để dọn dữ liệu test.
 @pytest.fixture(scope="session", autouse=True)
 def _cleanup_after_session():
     yield
     _cleanup_test_artifacts()
 
 
+# Client gọi API in-process (không cần mở cổng mạng), dùng chung cả phiên test.
 @pytest.fixture(scope="session")
 def client():
     return TestClient(app)
 
 
+# Đăng nhập admin (tài khoản do seed tạo) và trả access token.
 @pytest.fixture(scope="session")
 def admin_token(client):
     resp = client.post("/auth/login", json={"username": "admin", "password": "admin123"})
@@ -67,11 +70,13 @@ def admin_token(client):
     return resp.json()["access_token"]
 
 
+# Header Authorization sẵn dùng cho các request của admin.
 @pytest.fixture(scope="session")
 def admin_headers(admin_token):
     return {"Authorization": f"Bearer {admin_token}"}
 
 
+# Đăng nhập member "vana" và trả access token.
 @pytest.fixture(scope="session")
 def member_token(client):
     # Seed tạo sẵn user "vana" (role=member) gắn với member "vana@example.com".
@@ -80,6 +85,7 @@ def member_token(client):
     return resp.json()["access_token"]
 
 
+# Header Authorization sẵn dùng cho các request của member.
 @pytest.fixture(scope="session")
 def member_headers(member_token):
     return {"Authorization": f"Bearer {member_token}"}

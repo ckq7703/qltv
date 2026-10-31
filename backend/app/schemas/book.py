@@ -1,3 +1,5 @@
+# Schema cho sách, tác giả, thể loại.
+# from_attributes=True cho phép tạo schema trực tiếp từ object ORM.
 from datetime import datetime
 from typing import Optional
 
@@ -17,6 +19,7 @@ class CategoryOut(BaseModel):
     parent_id: Optional[int] = None
 
 
+# Body tạo sách. copies_count là số bản sao vật lý được tạo kèm.
 class BookCreate(BaseModel):
     title: str
     isbn: str
@@ -26,6 +29,7 @@ class BookCreate(BaseModel):
     copies_count: int = 1
 
 
+# Body sửa sách: trường nào là None thì giữ nguyên giá trị cũ.
 class BookUpdate(BaseModel):
     title: Optional[str] = None
     isbn: Optional[str] = None
@@ -34,6 +38,8 @@ class BookUpdate(BaseModel):
     author_ids: Optional[list[int]] = None
 
 
+# Sách trả về cho client. available_copies / total_copies không phải cột DB,
+# được router tính thêm.
 class BookOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

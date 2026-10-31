@@ -1,3 +1,4 @@
+# Endpoint sách: tìm kiếm có cache, CRUD, quản lý bản sao (chỉ admin được ghi)
 import math
 from typing import Literal, Optional
 
@@ -8,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.cache.books_cache import get_or_set_search_cache, invalidate_book_search_cache
 from app.db import get_db
-from app.deps import require_admin
+from app.deps import audited_admin, require_admin
 from app.models.book import Book, BookAuthor
 from app.models.book_copy import BookCopy
 from app.models.loan import Loan
@@ -20,6 +21,8 @@ router = APIRouter(prefix="/books", tags=["books"])
 SortField = Literal["title", "created_at", "available_copies"]
 
 
+# Chuyển 1 Book sang dict JSON, kèm số bản sao tổng và số bản sao đang rảnh
+# (2 câu COUNT cho mỗi sách).
 def _book_to_dict(db: Session, book: Book) -> dict:
     total = db.scalar(
         select(func.count()).select_from(BookCopy).where(BookCopy.book_id == book.id)
@@ -35,6 +38,10 @@ def _book_to_dict(db: Session, book: Book) -> dict:
     return out.model_dump(mode="json")
 
 
+# Danh sách sách: tìm kiếm full-text (cột search_vector), lọc theo thể loại / còn sách,
+# sắp xếp, phân trang. Kết quả được cache Redis theo bộ tham số (cache-aside).
+# Lưu ý: lọc còn sách, sắp xếp và phân trang làm trong Python sau khi nạp toàn bộ
+# sách khớp, đủ cho dữ liệu cỡ đồ án nhưng không tối ưu khi dữ liệu lớn.
 @router.get("", response_model=Page[BookOut])
 def list_books(
     search: Optional[str] = None,
@@ -49,6 +56,7 @@ def list_books(
     page = max(page, 1)
     page_size = min(max(page_size, 1), 100)
 
+    # Hàm này chỉ chạy khi cache miss
     def _load() -> dict:
         query = select(Book)
         if category_id is not None:
@@ -95,9 +103,11 @@ def list_books(
     return get_or_set_search_cache(cache_params, _load)
 
 
+# Tạo sách kèm liên kết tác giả và N bản sao ban đầu, trong 1 transaction.
+# flush() để lấy book.id trước khi tạo các dòng phụ thuộc.
 @router.post("", response_model=BookOut, status_code=201)
 def create_book(
-    payload: BookCreate, db: Session = Depends(get_db), _admin: dict = Depends(require_admin)
+    payload: BookCreate, db: Session = Depends(get_db), _admin: dict = Depends(audited_admin)
 ):
     book = Book(
         title=payload.title,
@@ -120,12 +130,14 @@ def create_book(
     return _book_to_dict(db, book)
 
 
+# Sửa sách: chỉ cập nhật trường nào có gửi lên. Nếu có author_ids thì thay
+# toàn bộ danh sách tác giả.
 @router.put("/{book_id}", response_model=BookOut)
 def update_book(
     book_id: int,
     payload: BookUpdate,
     db: Session = Depends(get_db),
-    _admin: dict = Depends(require_admin),
+    _admin: dict = Depends(audited_admin),
 ):
     book = db.get(Book, book_id)
     if book is None:
@@ -183,6 +195,7 @@ class BookCopyOut(BaseModel):
     status: str
 
 
+# Liệt kê các bản sao của một sách kèm trạng thái (chỉ admin).
 @router.get("/{book_id}/copies", response_model=list[BookCopyOut])
 def list_book_copies(
     book_id: int, db: Session = Depends(get_db), _admin: dict = Depends(require_admin)
@@ -196,6 +209,7 @@ def list_book_copies(
     return [BookCopyOut(id=c.id, status=c.status) for c in copies]
 
 
+# Trạng thái admin được đặt thủ công; 'borrowed' do trigger quản lý nên không có ở đây.
 class UpdateCopyStatusRequest(BaseModel):
     status: Literal["available", "lost", "damaged"]
 
@@ -226,9 +240,11 @@ def update_copy_status(
     return BookCopyOut(id=copy.id, status=copy.status)
 
 
+# Xóa sách. Từ chối (409) nếu sách đã có lịch sử mượn để giữ audit trail;
+# nếu xóa được thì các bản sao bị xóa theo nhờ ON DELETE CASCADE.
 @router.delete("/{book_id}", status_code=204)
 def delete_book(
-    book_id: int, db: Session = Depends(get_db), _admin: dict = Depends(require_admin)
+    book_id: int, db: Session = Depends(get_db), _admin: dict = Depends(audited_admin)
 ):
     book = db.get(Book, book_id)
     if book is None:

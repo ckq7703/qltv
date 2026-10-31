@@ -1,6 +1,9 @@
+# Cấu hình ứng dụng, đọc từ biến môi trường / file .env
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+# Các thiết lập của app. database_url và redis_url bắt buộc phải có trong .env;
+# jwt_secret mặc định chỉ dùng khi dev, production phải đổi.
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

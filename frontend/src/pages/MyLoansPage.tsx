@@ -12,12 +12,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { api } from '@/lib/api'
 import type { Loan, OverdueLoan, Page } from '@/types'
 
+// Trang 'My Loans' của member: xem sách mình đang mượn / đã quá hạn và tự trả sách.
 const DEFAULT_PAGE_SIZE = 10
 
+// Định dạng ngày hiển thị trong bảng.
 function formatDate(value: string) {
   return new Date(value).toLocaleString('en-US')
 }
 
+// Ô hiển thị bìa nhỏ kèm tên sách trong bảng.
 function BookCell({ title, coverUrl, seed }: { title: string; coverUrl: string | null; seed: number }) {
   return (
     <div className="flex items-center gap-2.5">
@@ -29,6 +32,8 @@ function BookCell({ title, coverUrl, seed }: { title: string; coverUrl: string |
   )
 }
 
+// Backend tự chỉ trả phiếu của chính người đăng nhập. Nếu tài khoản chưa gắn hồ sơ độc giả
+// (backend trả 403) thì hiện thông báo hướng dẫn nhờ thủ thư liên kết.
 export function MyLoansPage() {
   const [status, setStatus] = useState<'borrowed' | 'overdue'>('borrowed')
   const [page, setPage] = useState(1)
@@ -40,6 +45,8 @@ export function MyLoansPage() {
   const [notLinked, setNotLinked] = useState(false)
   const [selectedLoanId, setSelectedLoanId] = useState<number | null>(null)
 
+  // Tải một trang phiếu theo trạng thái. Hai tab trả hai dạng dữ liệu khác nhau:
+  // 'borrowed' trả Loan, 'overdue' trả OverdueLoan (từ view v_overdue_loans).
   const load = async (currentStatus: 'borrowed' | 'overdue', currentPage: number) => {
     setLoading(true)
     try {
@@ -65,15 +72,18 @@ export function MyLoansPage() {
     }
   }
 
+  // Tải lại dữ liệu khi đổi tab, trang hoặc số dòng/trang.
   useEffect(() => {
     load(status, page)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, page, pageSize])
 
+  // Đổi tab hoặc số dòng/trang thì quay về trang 1.
   useEffect(() => {
     setPage(1)
   }, [status, pageSize])
 
+  // Tự trả sách (POST /loans/{id}/return) rồi tải lại danh sách.
   const handleReturn = async (loanId: number) => {
     try {
       await api.post(`/loans/${loanId}/return`)

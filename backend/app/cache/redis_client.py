@@ -3,6 +3,7 @@ import redis.asyncio as redis_async
 
 from app.config import settings
 
+# Client đồng bộ, dùng cho cache và publish trong các route handler thường.
 redis_client = redis.Redis.from_url(settings.redis_url, decode_responses=True)
 
 # Client async riêng cho WebSocket pub/sub (notifications.py) — dùng client sync ở đây

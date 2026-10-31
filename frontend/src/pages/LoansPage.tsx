@@ -30,14 +30,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { api } from '@/lib/api'
 import type { Loan, OverdueLoan, Page } from '@/types'
 
+// Trang quản lý phiếu mượn của admin: xem mọi phiếu, tìm theo sách/độc giả, trả hộ.
 const DEFAULT_PAGE_SIZE = 10
 
 type SortDir = 'asc' | 'desc'
 
+// Định dạng ngày hiển thị trong bảng.
 function formatDate(value: string) {
   return new Date(value).toLocaleString('en-US')
 }
 
+// Lấy chữ cái đầu của tên để làm avatar mặc định.
 function initialsOf(name: string) {
   return name
     .split(' ')
@@ -47,6 +50,7 @@ function initialsOf(name: string) {
     .join('')
 }
 
+// Ô hiển thị avatar kèm tên độc giả trong bảng.
 function MemberCell({ name, avatarUrl }: { name: string; avatarUrl: string | null }) {
   return (
     <div className="flex items-center gap-2">
@@ -61,6 +65,7 @@ function MemberCell({ name, avatarUrl }: { name: string; avatarUrl: string | nul
   )
 }
 
+// Ô hiển thị bìa nhỏ kèm tên sách trong bảng.
 function BookCell({ title, coverUrl, seed }: { title: string; coverUrl: string | null; seed: number }) {
   return (
     <div className="flex items-center gap-2.5">
@@ -72,6 +77,8 @@ function BookCell({ title, coverUrl, seed }: { title: string; coverUrl: string |
   )
 }
 
+// Hai tab: 'borrowed' (đang mượn) và 'overdue' (quá hạn, đọc từ view v_overdue_loans).
+// Bấm vào một dòng để mở hộp thoại chi tiết phiếu.
 export function LoansPage() {
   const [status, setStatus] = useState<'borrowed' | 'overdue'>('borrowed')
   const [search, setSearch] = useState('')
@@ -85,6 +92,7 @@ export function LoansPage() {
   const [loading, setLoading] = useState(true)
   const [selectedLoanId, setSelectedLoanId] = useState<number | null>(null)
 
+  // Tải một trang phiếu theo tab, từ khóa, chiều sắp xếp (theo hạn trả) và phân trang.
   const load = async (currentStatus: 'borrowed' | 'overdue', currentPage: number, dir: SortDir) => {
     setLoading(true)
     try {
@@ -112,16 +120,19 @@ export function LoansPage() {
     }
   }
 
+  // Debounce 300ms: đợi người dùng ngừng gõ ô tìm kiếm rồi mới gọi API.
   useEffect(() => {
     const timer = setTimeout(() => load(status, page, sortDir), 300)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, page, sortDir, pageSize, search])
 
+  // Đổi tab, tìm kiếm, sắp xếp hoặc số dòng/trang thì quay về trang 1.
   useEffect(() => {
     setPage(1)
   }, [status, sortDir, pageSize, search])
 
+  // Admin ghi nhận trả sách (POST /loans/{id}/return) rồi tải lại danh sách.
   const handleReturn = async (loanId: number) => {
     try {
       await api.post(`/loans/${loanId}/return`)
@@ -133,6 +144,7 @@ export function LoansPage() {
     }
   }
 
+  // Điều khiển sắp xếp theo hạn trả, bấm nút để đảo chiều tăng/giảm.
   const SortControl = (
     <div className="flex items-center gap-2">
       <Select value="due_date">

@@ -1,3 +1,4 @@
+# Endpoint tác giả: xem danh sách (công khai), thêm mới (chỉ admin)
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -10,11 +11,13 @@ from app.schemas.book import AuthorOut
 router = APIRouter(prefix="/authors", tags=["authors"])
 
 
+# Lấy toàn bộ tác giả, không phân trang, không cần đăng nhập.
 @router.get("", response_model=list[AuthorOut])
 def list_authors(db: Session = Depends(get_db)):
     return db.scalars(select(Author)).all()
 
 
+# Thêm tác giả (chỉ admin). full_name truyền qua query string.
 @router.post("", response_model=AuthorOut, status_code=201)
 def create_author(
     full_name: str, db: Session = Depends(get_db), _admin: dict = Depends(require_admin)

@@ -1,3 +1,5 @@
+# Import mọi model ở đây để chúng đều được đăng ký vào Base.metadata
+# (Alembic cần để nhận ra các bảng).
 from app.models.author import Author
 from app.models.book import Book, BookAuthor
 from app.models.book_copy import BookCopy

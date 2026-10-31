@@ -4,6 +4,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
 
+# Tác giả. Quan hệ nhiều-nhiều với sách qua bảng trung gian book_authors.
 class Author(Base):
     __tablename__ = "authors"
 

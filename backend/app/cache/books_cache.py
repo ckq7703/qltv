@@ -1,3 +1,4 @@
+# Cache kết quả tìm kiếm sách bằng Redis (cache-aside)
 import hashlib
 import json
 from typing import Any, Callable
@@ -10,6 +11,8 @@ HIT_COUNTER_KEY = "cache:books_search:hits"
 MISS_COUNTER_KEY = "cache:books_search:misses"
 
 
+# Tạo key cache từ bộ tham số: sắp xếp theo tên rồi băm SHA-256,
+# nên cùng tham số luôn ra cùng key (bất kể thứ tự truyền).
 def _cache_key(params: dict[str, Any]) -> str:
     raw = "&".join(f"{k}={params[k] if params[k] is not None else ''}" for k in sorted(params))
     digest = hashlib.sha256(raw.encode()).hexdigest()
@@ -35,6 +38,7 @@ def get_or_set_search_cache(params: dict[str, Any], loader: Callable[[], dict]) 
 
 def invalidate_book_search_cache() -> None:
     """Gọi khi books/book_copies thay đổi để tránh trả kết quả tìm kiếm cũ."""
+    # Dùng SCAN theo từng đợt thay vì KEYS để không chặn Redis khi có nhiều key.
     cursor = 0
     while True:
         cursor, keys = redis_client.scan(cursor, match=f"{SEARCH_CACHE_PREFIX}*", count=100)
@@ -44,6 +48,7 @@ def invalidate_book_search_cache() -> None:
             break
 
 
+# Trả về số lần hit / miss và tỷ lệ hit của cache tìm kiếm.
 def get_cache_stats() -> dict:
     hits = int(redis_client.get(HIT_COUNTER_KEY) or 0)
     misses = int(redis_client.get(MISS_COUNTER_KEY) or 0)

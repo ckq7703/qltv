@@ -7,6 +7,7 @@ import {
   LogIn,
   LogOut,
   Repeat,
+  ScrollText,
   Users,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -34,6 +35,8 @@ import {
 import { useAdminNotifications } from '@/hooks/useAdminNotifications'
 import { useAuth } from '@/lib/auth-context'
 
+// Các mục menu sidebar, chia 3 nhóm: Catalog (ai cũng thấy), Management (chỉ admin),
+// My Library (chỉ member). Việc ẩn/hiện nhóm theo role nằm ở phần JSX bên dưới.
 const catalogItems = [{ to: '/', label: 'Books', icon: BookMarked, adminOnly: false }]
 
 const managementItems = [
@@ -41,10 +44,14 @@ const managementItems = [
   { to: '/loans', label: 'Loans', icon: Repeat, adminOnly: true },
   { to: '/categories', label: 'Categories', icon: FolderTree, adminOnly: true },
   { to: '/stats', label: 'Statistics', icon: LayoutDashboard, adminOnly: true },
+  { to: '/audit-log', label: 'Audit Log', icon: ScrollText, adminOnly: true },
 ]
 
 const memberItems = [{ to: '/my-loans', label: 'My Loans', icon: BookHeart }]
 
+// Khung giao diện chung của app: sidebar bên trái, nội dung trang (Outlet) bên phải.
+// Với admin: bật nhận thông báo realtime, hiện chuông ở chân sidebar và mở hộp thoại
+// chi tiết phiếu mượn khi bấm vào một thông báo.
 export function AppLayout() {
   const { isAuthenticated, role, logout } = useAuth()
   const navigate = useNavigate()
@@ -52,6 +59,7 @@ export function AppLayout() {
   const { notifications, unreadCount, markAllRead } = useAdminNotifications(role === 'admin')
   const [selectedLoanId, setSelectedLoanId] = useState<number | null>(null)
 
+  // Đăng xuất rồi chuyển về trang đăng nhập.
   const handleLogout = async () => {
     await logout()
     navigate('/login')

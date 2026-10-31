@@ -1,3 +1,5 @@
+# WebSocket thông báo realtime cho admin. Nhận message từ kênh Redis pub/sub
+# (do app/notifications.py publish) rồi chuyển tiếp xuống trình duyệt.
 import asyncio
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -17,6 +19,7 @@ async def ws_notifications(websocket: WebSocket, token: str):
     access token được truyền qua query param — đủ dùng cho quy mô đồ án, không
     phục vụ mục đích production thật (token có thể lộ qua log truy cập).
     """
+    # Xác thực trước khi accept: token sai đóng với mã 4401, không phải admin đóng mã 4403.
     try:
         claims = decode_access_token(token)
     except ValueError:
@@ -30,12 +33,14 @@ async def ws_notifications(websocket: WebSocket, token: str):
     pubsub = async_redis_client.pubsub()
     await pubsub.subscribe(NOTIFY_CHANNEL)
 
+    # Task 1: mỗi message mới từ Redis được gửi xuống client.
     async def forward_messages() -> None:
         async for message in pubsub.listen():
             if message["type"] != "message":
                 continue
             await websocket.send_text(message["data"])
 
+    # Task 2: canh việc client ngắt kết nối.
     async def watch_disconnect() -> None:
         # pubsub.listen() ở trên chỉ GỬI, không bao giờ tự phát hiện client đóng kết nối.
         # Không có task riêng canh receive() thì handler treo vĩnh viễn ngay cả khi trình
@@ -47,6 +52,8 @@ async def ws_notifications(websocket: WebSocket, token: str):
         except WebSocketDisconnect:
             pass
 
+    # Chạy song song 2 task, task nào xong trước thì dọn dẹp: hủy cả hai
+    # và hủy đăng ký kênh Redis.
     forward_task = asyncio.create_task(forward_messages())
     disconnect_task = asyncio.create_task(watch_disconnect())
     try:

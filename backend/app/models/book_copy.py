@@ -4,6 +4,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
 
+# Bản sao: một cuốn sách vật lý trên kệ. Việc mượn/trả diễn ra trên bản sao,
+# nên đây là bảng chịu tranh chấp khi nhiều người cùng mượn (xem services/loans.py).
+# status do trigger DB tự đổi khi có loan mới / trả sách (migration 0002);
+# version tăng mỗi lần status đổi, dùng cho optimistic locking.
 class BookCopy(Base):
     __tablename__ = "book_copies"
     __table_args__ = (

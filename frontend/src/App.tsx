@@ -4,6 +4,7 @@ import { AdminRoute } from '@/components/AdminRoute'
 import { RequireAuth } from '@/components/RequireAuth'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { AuthProvider } from '@/lib/auth-context'
+import { AuditLogPage } from '@/pages/AuditLogPage'
 import { BooksPage } from '@/pages/BooksPage'
 import { CategoriesPage } from '@/pages/CategoriesPage'
 import { LoansPage } from '@/pages/LoansPage'
@@ -12,6 +13,11 @@ import { MembersPage } from '@/pages/MembersPage'
 import { MyLoansPage } from '@/pages/MyLoansPage'
 import { StatsPage } from '@/pages/StatsPage'
 
+// Khai báo toàn bộ route. AuthProvider cấp thông tin đăng nhập cho cả app; AppLayout là khung
+// sidebar chung. Quyền truy cập từng trang:
+//   - '/' (sách) và '/login': công khai
+//   - '/my-loans': cần đăng nhập (RequireAuth)
+//   - '/members', '/categories', '/loans', '/audit-log', '/stats': chỉ admin (AdminRoute)
 function App() {
   return (
     <AuthProvider>
@@ -49,6 +55,14 @@ function App() {
               element={
                 <AdminRoute>
                   <LoansPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/audit-log"
+              element={
+                <AdminRoute>
+                  <AuditLogPage />
                 </AdminRoute>
               }
             />

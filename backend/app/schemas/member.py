@@ -1,3 +1,4 @@
+# Schema cho thành viên (độc giả)
 from datetime import datetime
 from typing import Optional
 
@@ -15,6 +16,7 @@ class MemberCreate(BaseModel):
     password: Optional[str] = None
 
 
+# username là tài khoản gắn với độc giả (None nếu chưa có).
 class MemberOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

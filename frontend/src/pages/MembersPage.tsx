@@ -41,11 +41,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
 import type { Member, Page } from '@/types'
 
+// Trang quản lý độc giả (chỉ admin): tìm kiếm, sắp xếp, phân trang, thêm độc giả.
 const DEFAULT_PAGE_SIZE = 9
 
 type SortBy = 'full_name' | 'joined_at'
 type SortDir = 'asc' | 'desc'
 
+// Lấy chữ cái đầu của 2 từ cuối trong tên để làm avatar mặc định.
 function initialsOf(name: string) {
   return name
     .split(' ')
@@ -55,6 +57,7 @@ function initialsOf(name: string) {
     .join('')
 }
 
+// Gợi ý username từ email: lấy phần trước '@', viết thường, bỏ ký tự đặc biệt.
 function slugifyUsername(email: string) {
   return email
     .split('@')[0]
@@ -62,11 +65,14 @@ function slugifyUsername(email: string) {
     .replace(/[^a-z0-9]/g, '')
 }
 
+// Sinh mật khẩu ngẫu nhiên 10 ký tự (bỏ các ký tự dễ nhầm như 0/O, 1/l/I).
 function generatePassword() {
   const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789'
   return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
+// Danh sách độc giả tải từ server theo từng trang. Khi thêm độc giả, nếu điền username
+// thì backend tạo luôn tài khoản đăng nhập; mật khẩu chỉ hiển thị 1 lần ngay sau khi tạo.
 export function MembersPage() {
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
@@ -95,6 +101,7 @@ export function MembersPage() {
   } | null>(null)
   const [copied, setCopied] = useState(false)
 
+  // Tải một trang độc giả theo từ khóa, kiểu sắp xếp và phân trang hiện tại.
   const load = async () => {
     setLoading(true)
     try {
@@ -116,16 +123,19 @@ export function MembersPage() {
     }
   }
 
+  // Debounce 300ms: đợi người dùng ngừng gõ rồi mới gọi API, tránh gọi liên tục mỗi phím.
   useEffect(() => {
     const timer = setTimeout(load, 300)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, sortBy, sortDir, page, pageSize])
 
+  // Đổi bộ lọc, sắp xếp hoặc số dòng/trang thì quay về trang 1.
   useEffect(() => {
     setPage(1)
   }, [search, sortBy, sortDir, pageSize])
 
+  // Đưa form thêm độc giả về trạng thái ban đầu (sinh lại mật khẩu mới).
   const resetForm = () => {
     setFullName('')
     setEmail('')
@@ -137,11 +147,14 @@ export function MembersPage() {
     setCopied(false)
   }
 
+  // Nhập email thì tự gợi ý username, trừ khi người dùng đã tự sửa username.
   const handleEmailChange = (value: string) => {
     setEmail(value)
     if (!usernameTouched) setUsername(slugifyUsername(value))
   }
 
+  // Tạo độc giả (POST /members). Có tài khoản đăng nhập thì chuyển sang màn hình hiển thị
+  // thông tin đăng nhập để admin sao chép; không có thì đóng hộp thoại.
   const handleCreate = async () => {
     if (!fullName || !email) {
       toast.error('Full name and email are required')
@@ -169,6 +182,7 @@ export function MembersPage() {
     }
   }
 
+  // Sao chép username/mật khẩu vừa tạo vào clipboard.
   const handleCopyCredentials = () => {
     if (!createdCredentials) return
     navigator.clipboard

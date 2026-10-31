@@ -35,11 +35,14 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 import type { Author, Book, BookCopy, Category, CopyStatus, Page } from '@/types'
 
+// Trang danh mục sách (trang chủ). Ai cũng xem và tìm kiếm được;
+// admin thêm/sửa/xóa sách và quản lý bản sao; member bấm để tự mượn.
 const PAGE_SIZE = 10
 
 type SortBy = 'created_at' | 'title' | 'available_copies'
 type SortDir = 'asc' | 'desc'
 
+// Dữ liệu form thêm/sửa sách. categoryId = 'none' nghĩa là chưa phân loại.
 interface BookFormState {
   title: string
   isbn: string
@@ -58,6 +61,8 @@ const emptyForm: BookFormState = {
   authorIds: [],
 }
 
+// Danh sách sách tải từ server (có cache Redis phía backend) theo từ khóa, thể loại,
+// lọc còn sách, sắp xếp và phân trang. Mượn sách đi qua BorrowWizard.
 export function BooksPage() {
   const { role } = useAuth()
   const isAdmin = role === 'admin'
@@ -94,6 +99,7 @@ export function BooksPage() {
 
   const [borrowBook, setBorrowBook] = useState<Book | null>(null)
 
+  // Tải danh sách thể loại và tác giả một lần để dùng cho bộ lọc và form.
   useEffect(() => {
     api
       .get<Category[]>('/categories')
@@ -105,6 +111,7 @@ export function BooksPage() {
       .catch(() => undefined)
   }, [])
 
+  // Tải danh sách bản sao của một sách (chỉ admin, hiển thị trong hộp thoại sửa).
   const loadCopies = async (bookId: number) => {
     setCopiesLoading(true)
     try {
@@ -117,6 +124,7 @@ export function BooksPage() {
     }
   }
 
+  // Đổi trạng thái một bản sao (available / lost / damaged). Backend không cho đổi bản sao đang được mượn.
   const handleSetCopyStatus = async (copyId: number, status: CopyStatus) => {
     if (!editingBookId) return
     try {
@@ -130,6 +138,7 @@ export function BooksPage() {
     }
   }
 
+  // Tải một trang sách theo bộ lọc, sắp xếp và phân trang hiện tại.
   const loadBooks = async () => {
     setLoading(true)
     try {
@@ -153,18 +162,22 @@ export function BooksPage() {
     }
   }
 
+  // Debounce 300ms: đợi người dùng ngừng gõ ô tìm kiếm rồi mới gọi API.
   useEffect(() => {
     const timer = setTimeout(loadBooks, 300)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, categoryFilter, availableOnly, sortBy, sortDir, page])
 
+  // Đổi bộ lọc hoặc sắp xếp thì quay về trang 1.
   useEffect(() => {
     setPage(1)
   }, [search, categoryFilter, availableOnly, sortBy, sortDir])
 
+  // Số bộ lọc đang bật (thể loại, chỉ sách còn), dùng để hiện số trên nút lọc.
   const activeFilterCount = (categoryFilter !== 'all' ? 1 : 0) + (availableOnly ? 1 : 0)
 
+  // Mở hộp thoại ở chế độ thêm sách với form trống.
   const openCreateDialog = () => {
     setFormMode('create')
     setEditingBookId(null)
@@ -173,6 +186,7 @@ export function BooksPage() {
     setFormOpen(true)
   }
 
+  // Mở hộp thoại ở chế độ sửa, điền sẵn dữ liệu sách và tải danh sách bản sao.
   const openEditDialog = (book: Book) => {
     setFormMode('edit')
     setEditingBookId(book.id)
@@ -189,6 +203,7 @@ export function BooksPage() {
     setFormOpen(true)
   }
 
+  // Chọn / bỏ chọn một tác giả trong form.
   const toggleAuthor = (authorId: number) => {
     setForm((f) => ({
       ...f,
@@ -198,6 +213,7 @@ export function BooksPage() {
     }))
   }
 
+  // Upload ảnh bìa (POST /uploads/cover) rồi điền URL trả về vào form.
   const handleUploadCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -218,6 +234,8 @@ export function BooksPage() {
     }
   }
 
+  // Lưu sách. Thêm mới: POST /books kèm số bản sao ban đầu. Sửa: PUT /books/{id},
+  // và nếu có nhập số bản sao thêm thì gọi tiếp POST /books/{id}/copies.
   const handleSubmitForm = async () => {
     if (!form.title || !form.isbn) {
       toast.error('Title and ISBN are required')
@@ -256,6 +274,7 @@ export function BooksPage() {
     }
   }
 
+  // Xóa sách sau khi xác nhận (backend từ chối nếu sách đã có lịch sử mượn).
   const handleDeleteBook = async (book: Book) => {
     if (!confirm(`Delete book "${book.title}"?`)) return
     try {
@@ -267,6 +286,7 @@ export function BooksPage() {
     }
   }
 
+  // Mở trình hướng dẫn mượn sách cho sách được chọn.
   const openBorrowWizard = (book: Book) => setBorrowBook(book)
 
   return (

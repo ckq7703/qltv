@@ -1,3 +1,6 @@
+# Nghiệp vụ đăng nhập, làm mới token, đăng xuất.
+# Access token là JWT ngắn hạn; refresh token là chuỗi ngẫu nhiên lưu trong Redis
+# với TTL — xóa key trong Redis là thu hồi token ngay.
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -14,10 +17,13 @@ from app.security import (
 REFRESH_KEY_PREFIX = "refresh_token:"
 
 
+# Đổi số ngày TTL của refresh token (cấu hình) sang giây.
 def _refresh_ttl_seconds() -> int:
     return settings.jwt_refresh_ttl_days * 24 * 60 * 60
 
 
+# Kiểm tra username/password, phát cặp token. Sai tên hay sai mật khẩu đều trả
+# cùng một thông báo để không lộ tài khoản nào tồn tại.
 def login(db: Session, username: str, password: str) -> dict:
     user = db.scalar(select(User).where(User.username == username))
     if user is None or not verify_password(password, user.password_hash):
@@ -31,6 +37,8 @@ def login(db: Session, username: str, password: str) -> dict:
     return {"access_token": access_token, "refresh_token": refresh_token}
 
 
+# Đổi refresh token lấy cặp token mới. Token không có trong Redis (sai, đã dùng,
+# đã logout hoặc hết hạn) -> 401.
 def refresh(db: Session, refresh_token: str) -> dict:
     key = f"{REFRESH_KEY_PREFIX}{refresh_token}"
     user_id = redis_client.get(key)
@@ -51,5 +59,6 @@ def refresh(db: Session, refresh_token: str) -> dict:
     return {"access_token": access_token, "refresh_token": new_token}
 
 
+# Xóa refresh token khỏi Redis. Access token đang sống vẫn dùng được tới khi hết hạn.
 def logout(refresh_token: str) -> None:
     redis_client.delete(f"{REFRESH_KEY_PREFIX}{refresh_token}")

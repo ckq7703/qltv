@@ -6,6 +6,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
 
+# Thể loại sách, dạng cây cha-con (parent_id = NULL là thể loại gốc).
+# remote_side="Category.id" giúp SQLAlchemy phân biệt phía cha trong quan hệ tự tham chiếu.
 class Category(Base):
     __tablename__ = "categories"
 

@@ -9,10 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { api } from '@/lib/api'
 import type { ActiveMember, CacheStats, Page, TopBook } from '@/types'
 
+// Trang thống kê: sách mượn nhiều, độc giả tích cực, và số liệu cache Redis.
 const DEFAULT_PAGE_SIZE = 10
 
 const emptyPage = { total: 0, page: 1, page_size: DEFAULT_PAGE_SIZE, total_pages: 1 }
 
+// Số liệu lấy từ các view trong DB qua /stats/*. Mỗi bảng xếp hạng có phân trang riêng.
+// Nút 'Refresh monthly report' làm mới materialized view mv_monthly_stats.
 export function StatsPage() {
   const [topBooks, setTopBooks] = useState<TopBook[]>([])
   const [topBooksPage, setTopBooksPage] = useState(1)
@@ -27,6 +30,7 @@ export function StatsPage() {
   const [cacheStats, setCacheStats] = useState<CacheStats | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
+  // Tải một trang bảng xếp hạng sách được mượn nhiều.
   const loadTopBooks = async (page: number, pageSize: number) => {
     try {
       const resp = await api.get<Page<TopBook>>('/stats/top-books', {
@@ -39,6 +43,7 @@ export function StatsPage() {
     }
   }
 
+  // Tải một trang bảng xếp hạng độc giả mượn nhiều.
   const loadActiveMembers = async (page: number, pageSize: number) => {
     try {
       const resp = await api.get<Page<ActiveMember>>('/stats/active-members', {
@@ -51,6 +56,7 @@ export function StatsPage() {
     }
   }
 
+  // Tải số lần cache hit/miss của tìm kiếm sách.
   const loadCacheStats = async () => {
     try {
       const resp = await api.get<CacheStats>('/stats/cache')
@@ -60,30 +66,36 @@ export function StatsPage() {
     }
   }
 
+  // Tải lại bảng sách khi đổi trang hoặc số dòng/trang.
   useEffect(() => {
     loadTopBooks(topBooksPage, topBooksPageSize)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topBooksPage, topBooksPageSize])
 
+  // Đổi số dòng/trang thì quay về trang 1.
   useEffect(() => {
     setTopBooksPage(1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topBooksPageSize])
 
+  // Tải lại bảng độc giả khi đổi trang hoặc số dòng/trang.
   useEffect(() => {
     loadActiveMembers(activeMembersPage, activeMembersPageSize)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeMembersPage, activeMembersPageSize])
 
+  // Đổi số dòng/trang thì quay về trang 1.
   useEffect(() => {
     setActiveMembersPage(1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeMembersPageSize])
 
+  // Tải số liệu cache một lần khi mở trang.
   useEffect(() => {
     loadCacheStats()
   }, [])
 
+  // Gọi POST /stats/refresh-monthly để làm mới báo cáo tháng (materialized view).
   const handleRefreshMonthly = async () => {
     setRefreshing(true)
     try {

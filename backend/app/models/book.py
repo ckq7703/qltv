@@ -7,6 +7,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
 
+# Đầu sách (thông tin chung: tên, ISBN...). Từng cuốn vật lý là BookCopy;
+# một Book có nhiều BookCopy.
 class Book(Base):
     __tablename__ = "books"
 
@@ -30,6 +32,8 @@ class Book(Base):
     copies: Mapped[list["BookCopy"]] = relationship(back_populates="book", passive_deletes=True)
 
 
+# Bảng trung gian Book <-> Author. Khóa chính ghép (book_id, author_id);
+# xóa sách hoặc tác giả thì dòng liên kết tự bị xóa (CASCADE).
 class BookAuthor(Base):
     __tablename__ = "book_authors"
 

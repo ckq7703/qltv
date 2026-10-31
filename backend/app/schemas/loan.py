@@ -1,3 +1,4 @@
+# Schema cho phiếu mượn
 from datetime import datetime
 from typing import Optional
 
@@ -11,6 +12,7 @@ class BorrowRequest(BaseModel):
     member_id: Optional[int] = None
 
 
+# Phiếu mượn dạng tóm tắt (đúng các cột của bảng loans).
 class LoanOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -21,6 +23,7 @@ class LoanOut(BaseModel):
     returned_at: Optional[datetime] = None
 
 
+# Nội quy mượn sách hiển thị trên giao diện.
 class LoanPolicy(BaseModel):
     loan_period_days: int
     max_active_loans_per_member: int
@@ -28,6 +31,7 @@ class LoanPolicy(BaseModel):
     currency: str
 
 
+# Thông tin sách và người mượn rút gọn, nhúng trong LoanDetailOut.
 class LoanBookInfo(BaseModel):
     id: int
     title: str
@@ -45,6 +49,7 @@ class LoanMemberInfo(BaseModel):
 LoanStatus = str  # "active" | "overdue" | "returned"
 
 
+# Chi tiết phiếu mượn đầy đủ, kèm trạng thái, sách và người mượn.
 class LoanDetailOut(BaseModel):
     id: int
     status: LoanStatus

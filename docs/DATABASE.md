@@ -79,6 +79,7 @@ DDL đầy đủ: spec mục 4.2.
 
 - `pg_dump`/restore: xem spec mục 8.
 - `audit_log`: JSONB `old_data`/`new_data`, ghi qua trigger, phục vụ truy vết thay đổi.
+- `changed_by`: backend gán `set_config('app.user_id', <user id>, true)` đầu transaction (local, tự hết hiệu lực khi commit/rollback), trigger đọc bằng `current_setting('app.user_id', true)`. Thay đổi không qua API thì `NULL`. Xem migration `0006`, `app/deps.py` (`audited_claims`), endpoint `GET /audit-logs` và trang Audit Log của admin.
 
 ## 9. Kết quả thực nghiệm
 

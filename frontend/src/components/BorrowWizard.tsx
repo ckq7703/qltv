@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import type { Book, Loan, LoanPolicy, Member, Page } from '@/types'
 
+// Trình hướng dẫn mượn sách gồm 3 bước: chọn người mượn -> xem điều khoản -> xác nhận.
 type Step = 'borrower' | 'review' | 'done'
 
 const STEPS: { key: Step; label: string }[] = [
@@ -45,6 +46,7 @@ interface BorrowWizardProps {
   onSuccess: () => void
 }
 
+// Định dạng ngày kiểu en-US, ví dụ 'Fri, Oct 31, 2026'.
 function formatDate(value: Date | string) {
   return new Date(value).toLocaleDateString('en-US', {
     weekday: 'short',
@@ -54,6 +56,11 @@ function formatDate(value: Date | string) {
   })
 }
 
+// Hộp thoại mượn sách theo từng bước. Mở khi `book` khác null.
+//   - mode 'admin': chọn độc giả để mượn hộ.
+//   - mode 'member': tự mượn cho mình (backend lấy member_id từ token).
+// Bước 2 hiện hạn trả dự kiến và nội quy, người dùng phải tick đồng ý mới xác nhận được.
+// Việc chọn bản sao và chống mượn trùng do backend xử lý; lỗi (VD hết sách) được hiện bằng toast.
 export function BorrowWizard({ book, mode, onOpenChange, onSuccess }: BorrowWizardProps) {
   const open = book !== null
   const [step, setStep] = useState<Step>('borrower')
@@ -67,6 +74,8 @@ export function BorrowWizard({ book, mode, onOpenChange, onSuccess }: BorrowWiza
   const [submitting, setSubmitting] = useState(false)
   const [loan, setLoan] = useState<Loan | null>(null)
 
+  // Mỗi lần mở hộp thoại: đặt lại trạng thái, tải nội quy; admin thì tải danh sách độc giả,
+  // member thì đếm số sách đang mượn để hiển thị hạn mức.
   useEffect(() => {
     if (!open) return
     setStep('borrower')
@@ -105,6 +114,7 @@ export function BorrowWizard({ book, mode, onOpenChange, onSuccess }: BorrowWiza
     onOpenChange(false)
   }
 
+  // Gửi yêu cầu mượn (POST /loans/borrow). Thành công thì sang bước xác nhận và báo trang cha tải lại.
   const handleSubmit = async () => {
     setSubmitting(true)
     try {

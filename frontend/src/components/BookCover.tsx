@@ -16,6 +16,7 @@ const GRADIENTS = [
 // A4 portrait ratio (210mm × 297mm) — matches the covers admins upload.
 const A4_ASPECT = 'aspect-[210/297]'
 
+// Băm chuỗi thành số nguyên dương ổn định: cùng seed luôn cho cùng màu gradient.
 function hashSeed(seed: string) {
   let hash = 0
   for (let i = 0; i < seed.length; i++) {
@@ -32,6 +33,8 @@ interface BookCoverProps {
   className?: string
 }
 
+// Hiển thị ảnh bìa sách. Có coverUrl thì hiện ảnh; không có thì vẽ bìa giả bằng
+// gradient (chọn theo seed) cùng chữ cái đầu của tên sách.
 export function BookCover({ title, seed, coverUrl, className }: BookCoverProps) {
   if (coverUrl) {
     return (

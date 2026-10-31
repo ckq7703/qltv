@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/lib/auth-context'
 
+// Trang đăng nhập. Thành công thì lưu token (qua auth-context) và chuyển về trang chủ;
+// sai tài khoản thì báo lỗi bằng toast.
 export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
@@ -15,6 +17,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // Xử lý submit form: chặn reload trang rồi gọi login(username, password).
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setLoading(true)

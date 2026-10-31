@@ -1,3 +1,4 @@
+# Endpoint thể loại: xem danh sách (công khai), thêm / sửa / xóa (chỉ admin)
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -25,6 +26,7 @@ class CategoryUpdate(BaseModel):
     parent_id: Optional[int] = None
 
 
+# Danh sách thể loại, sắp theo tên.
 @router.get("", response_model=list[CategoryOut])
 def list_categories(db: Session = Depends(get_db)):
     return db.scalars(select(Category).order_by(Category.name)).all()
@@ -43,6 +45,8 @@ def create_category(
     return category
 
 
+# Sửa tên / thể loại cha. Chỉ chặn trường hợp tự làm cha của chính nó;
+# chưa kiểm tra vòng lặp gián tiếp (A -> B -> A).
 @router.put("/{category_id}", response_model=CategoryOut)
 def update_category(
     category_id: int,
@@ -64,6 +68,7 @@ def update_category(
     return category
 
 
+# Xóa thể loại. Từ chối (409) nếu còn thể loại con hoặc còn sách thuộc thể loại này.
 @router.delete("/{category_id}", status_code=204)
 def delete_category(
     category_id: int, db: Session = Depends(get_db), _admin: dict = Depends(require_admin)

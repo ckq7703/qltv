@@ -16,6 +16,7 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+# Thêm cột ảnh đại diện cho members (cho phép NULL để không ảnh hưởng dữ liệu cũ).
 def upgrade() -> None:
     op.add_column("members", sa.Column("avatar_url", sa.Text(), nullable=True))
 

@@ -1,3 +1,5 @@
+# Endpoint phiếu mượn: nội quy, mượn, trả, xem chi tiết, danh sách có lọc / phân trang.
+# Admin thao tác trên mọi phiếu; member chỉ thao tác trên phiếu của chính mình.
 import math
 from typing import Literal, Optional
 
@@ -8,7 +10,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
 from app.db import get_db
-from app.deps import get_current_claims
+from app.deps import audited_claims, get_current_claims
 from app.models.book import Book
 from app.models.book_copy import BookCopy
 from app.models.loan import Loan
@@ -31,6 +33,7 @@ SortField = Literal["due_date", "borrowed_at"]
 SORT_COLUMNS = {"due_date": Loan.due_date, "borrowed_at": Loan.borrowed_at}
 
 
+# Lấy member_id từ JWT claims. Tài khoản chưa gắn hồ sơ độc giả -> 403.
 def _member_id_of(claims: dict) -> int:
     member_id = claims.get("member_id")
     if member_id is None:
@@ -47,11 +50,14 @@ def loan_policy():
     return get_policy()
 
 
+# Mượn sách. Admin phải chỉ rõ member_id (mượn hộ); member luôn mượn cho chính mình.
+# Logic chống tương tranh nằm ở services/loans.borrow_book. Khi member TỰ mượn,
+# gửi thông báo realtime cho admin qua Redis pub/sub.
 @router.post("/borrow", response_model=LoanOut, status_code=201)
 def borrow(
     payload: BorrowRequest,
     db: Session = Depends(get_db),
-    claims: dict = Depends(get_current_claims),
+    claims: dict = Depends(audited_claims),
 ):
     is_self_service = claims.get("role") != "admin"
     if not is_self_service:
@@ -83,11 +89,12 @@ def borrow(
     return loan
 
 
+# Trả sách. Admin trả được mọi phiếu; member chỉ trả được phiếu của mình (nếu không -> 403).
 @router.post("/{loan_id}/return", response_model=LoanOut)
 def return_loan(
     loan_id: int,
     db: Session = Depends(get_db),
-    claims: dict = Depends(get_current_claims),
+    claims: dict = Depends(audited_claims),
 ):
     if claims.get("role") != "admin":
         member_id = _member_id_of(claims)
@@ -100,6 +107,8 @@ def return_loan(
     return return_book(db, loan_id)
 
 
+# Suy ra trạng thái phiếu: returned (đã trả) / overdue (quá hạn) / active (đang mượn).
+# due_date chưa có múi giờ thì coi là UTC để so sánh được.
 def _loan_status(loan: Loan) -> str:
     if loan.returned_at is not None:
         return "returned"
@@ -156,6 +165,9 @@ def get_loan(
     )
 
 
+# Danh sách phiếu mượn, lọc theo status (borrowed / returned / overdue) và từ khóa
+# (tên sách hoặc tên độc giả), có sắp xếp và phân trang. Member chỉ thấy phiếu của mình.
+# Nhánh "overdue" đọc từ view v_overdue_loans; các nhánh còn lại dùng ORM.
 @router.get("", response_model=Page[dict])
 def list_loans(
     status: Optional[str] = None,

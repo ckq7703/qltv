@@ -18,6 +18,8 @@ interface PaginationBarProps {
   onPageSizeChange?: (size: number) => void
 }
 
+// Thanh phân trang dùng chung: nút trang đầu / trước / sau / cuối, tổng số bản ghi,
+// và (tùy chọn) ô chọn số dòng mỗi trang. Chỉ 1 trang và không có ô chọn thì không hiển thị gì.
 export function PaginationBar({
   page,
   totalPages,

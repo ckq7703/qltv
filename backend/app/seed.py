@@ -16,6 +16,8 @@ from app.models.user import User
 from app.security import hash_password
 
 
+# Tìm bản ghi khớp **kwargs; chưa có thì tạo mới (kèm giá trị trong `defaults`).
+# Trả về (bản ghi, True nếu vừa tạo). Nhờ vậy chạy seed nhiều lần không bị trùng.
 def get_or_create(db, model, defaults=None, **kwargs):
     instance = db.scalar(select(model).filter_by(**kwargs))
     if instance:
@@ -27,6 +29,8 @@ def get_or_create(db, model, defaults=None, **kwargs):
     return instance, True
 
 
+# Tạo lần lượt: thể loại, tác giả, sách + bản sao, 10 độc giả (mỗi người có tài khoản
+# mật khẩu member123), tài khoản admin (admin123) và 1 phiếu mượn quá hạn để demo.
 def run():
     db = SessionLocal()
     try:

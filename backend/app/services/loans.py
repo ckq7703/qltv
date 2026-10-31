@@ -1,3 +1,4 @@
+# Nghiệp vụ mượn / trả sách (phần chống tương tranh của đồ án)
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
@@ -16,6 +17,7 @@ LATE_FEE_PER_DAY = 5000
 LATE_FEE_CURRENCY = "VND"
 
 
+# Nội quy mượn sách để frontend hiển thị.
 def get_policy() -> dict:
     return {
         "loan_period_days": LOAN_PERIOD_DAYS,
@@ -30,6 +32,11 @@ def borrow_book(db: Session, book_id: int, member_id: int) -> Loan:
     để tránh 2 độc giả cùng mượn trùng 1 bản sao khi tương tranh.
     Xem docs/DATABASE.md mục 3 (Concurrency control) để biết chi tiết thiết kế.
     """
+    # Luồng: khóa 1 bản sao rảnh (SKIP LOCKED bỏ qua bản sao đang bị người khác khóa,
+    # hết bản sao thì trả 409) -> kiểm tra hạn mức 3 cuốn -> tạo Loan -> commit.
+    # Trigger DB tự đổi bản sao sang 'borrowed'. Có lỗi thì rollback để nhả khóa.
+    # Lưu ý: hạn mức theo thành viên không được khóa, nên 2 request đồng thời của
+    # cùng một thành viên vẫn có thể cùng vượt qua bước kiểm tra này.
     try:
         copy_id = db.scalar(
             select(BookCopy.id)
@@ -70,6 +77,8 @@ def borrow_book(db: Session, book_id: int, member_id: int) -> Loan:
     return loan
 
 
+# Trả sách: ghi returned_at, trigger DB tự chuyển bản sao về 'available'.
+# Phiếu không tồn tại -> 404, đã trả rồi -> 409.
 def return_book(db: Session, loan_id: int) -> Loan:
     loan = db.get(Loan, loan_id)
     if loan is None:

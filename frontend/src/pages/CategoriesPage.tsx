@@ -26,6 +26,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { api } from '@/lib/api'
 import type { Category } from '@/types'
 
+// Dữ liệu form thêm/sửa thể loại. parentId = 'none' nghĩa là thể loại gốc (không có cha).
 interface FormState {
   name: string
   parentId: string
@@ -33,6 +34,10 @@ interface FormState {
 
 const emptyForm: FormState = { name: '', parentId: 'none' }
 
+// Trang quản lý thể loại (chỉ admin): xem danh sách, tìm theo tên, thêm / sửa / xóa.
+// Một hộp thoại dùng chung cho cả thêm và sửa, phân biệt bằng biến `mode`.
+// Quy tắc nghiệp vụ (không xóa thể loại còn con hoặc còn sách) do backend kiểm tra;
+// trang này chỉ hiển thị thông báo lỗi mà backend trả về.
 export function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
@@ -43,6 +48,7 @@ export function CategoriesPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
 
+  // Tải toàn bộ thể loại (GET /categories).
   const load = async () => {
     setLoading(true)
     try {
@@ -59,11 +65,13 @@ export function CategoriesPage() {
     load()
   }, [])
 
+  // Tên thể loại cha để hiển thị trong bảng; không tìm thấy thì hiện '#id'.
   const parentName = (parentId: number | null) => {
     if (parentId === null) return null
     return categories.find((c) => c.id === parentId)?.name ?? `#${parentId}`
   }
 
+  // Mở hộp thoại ở chế độ thêm mới với form trống.
   const openCreateDialog = () => {
     setMode('create')
     setEditingId(null)
@@ -71,6 +79,7 @@ export function CategoriesPage() {
     setOpen(true)
   }
 
+  // Mở hộp thoại ở chế độ sửa, điền sẵn dữ liệu của thể loại được chọn.
   const openEditDialog = (category: Category) => {
     setMode('edit')
     setEditingId(category.id)
@@ -81,6 +90,7 @@ export function CategoriesPage() {
     setOpen(true)
   }
 
+  // Lưu thể loại: POST khi thêm mới, PUT khi sửa. Tên là bắt buộc.
   const handleSubmit = async () => {
     if (!form.name.trim()) {
       toast.error('Category name is required')
@@ -106,6 +116,7 @@ export function CategoriesPage() {
     }
   }
 
+  // Xóa thể loại sau khi người dùng xác nhận.
   const handleDelete = async (category: Category) => {
     if (!confirm(`Delete category "${category.name}"?`)) return
     try {

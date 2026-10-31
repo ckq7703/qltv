@@ -2,6 +2,7 @@ import * as React from "react"
 
 const MOBILE_BREAKPOINT = 768
 
+// Hook trả về true khi màn hình hẹp hơn 768px (dùng để sidebar chuyển sang dạng mobile).
 export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
 

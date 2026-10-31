@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { AdminNotification } from '@/hooks/useAdminNotifications'
 
+// Đổi thời điểm ISO sang dạng 'just now' / '5m ago' / '3h ago'; quá 1 ngày thì hiện ngày.
 function timeAgo(iso: string) {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
   if (seconds < 60) return 'just now'
@@ -22,6 +23,8 @@ interface NotificationBellProps {
   onSelectLoan: (loanId: number) => void
 }
 
+// Chuông thông báo của admin: hiện số chưa đọc, bấm mở danh sách (và đánh dấu đã đọc qua onOpen).
+// Bấm vào một thông báo thì gọi onSelectLoan để mở chi tiết phiếu mượn tương ứng.
 export function NotificationBell({ notifications, unreadCount, onOpen, onSelectLoan }: NotificationBellProps) {
   const [popoverOpen, setPopoverOpen] = useState(false)
 

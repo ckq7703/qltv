@@ -7,6 +7,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
 
+# Phiếu mượn: ai mượn bản sao nào, hạn trả và ngày trả.
+# returned_at = NULL nghĩa là sách vẫn đang được mượn.
 class Loan(Base):
     __tablename__ = "loans"
     __table_args__ = (

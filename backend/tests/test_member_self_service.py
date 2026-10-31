@@ -5,10 +5,12 @@ member_id trong body request bị bỏ qua để tránh giả mạo mượn hộ
 import uuid
 
 
+# Sinh ISBN ngẫu nhiên để các lần chạy test không đụng ràng buộc unique.
 def _unique_isbn() -> str:
     return f"978-{uuid.uuid4().int % 10**10:010d}"
 
 
+# /auth/me của member phải trả về đúng hồ sơ độc giả đã liên kết.
 def test_me_endpoint_returns_linked_member(client, member_headers):
     resp = client.get("/auth/me", headers=member_headers)
     assert resp.status_code == 200, resp.text
@@ -18,6 +20,7 @@ def test_me_endpoint_returns_linked_member(client, member_headers):
     assert body["member_email"] == "vana@example.com"
 
 
+# Người chưa đăng nhập không được xem phiếu mượn hay mượn sách.
 def test_anonymous_cannot_borrow_or_list_loans(client):
     assert client.get("/loans").status_code in (401, 403)
     assert (
@@ -26,6 +29,7 @@ def test_anonymous_cannot_borrow_or_list_loans(client):
     )
 
 
+# Chống giả mạo: member gửi member_id của người khác trong body vẫn chỉ mượn cho chính mình.
 def test_member_self_borrow_ignores_member_id_in_body(client, member_headers, admin_headers):
     me = client.get("/auth/me", headers=member_headers).json()
 
@@ -53,6 +57,7 @@ def test_member_self_borrow_ignores_member_id_in_body(client, member_headers, ad
     # cùng lý do như test_concurrency.py, chấp nhận để lại vài sách test trong DB demo.
 
 
+# Member không được trả phiếu của người khác (403), admin thì được.
 def test_member_cannot_return_another_members_loan(client, member_headers, admin_headers):
     other_member_resp = client.get(
         "/members", params={"search": "thib@example.com"}, headers=admin_headers
@@ -80,6 +85,7 @@ def test_member_cannot_return_another_members_loan(client, member_headers, admin
     client.post(f"/loans/{loan['id']}/return", headers=admin_headers)
 
 
+# Danh sách phiếu mượn của member chỉ chứa phiếu của chính họ.
 def test_member_loans_list_only_shows_own(client, member_headers):
     me = client.get("/auth/me", headers=member_headers).json()
     resp = client.get("/loans", params={"status": "borrowed"}, headers=member_headers)
@@ -88,6 +94,8 @@ def test_member_loans_list_only_shows_own(client, member_headers):
         assert loan["member_id"] == me["member_id"]
 
 
+# Phân quyền xem chi tiết phiếu: admin và chính chủ xem được (200),
+# member khác bị 403, phiếu không tồn tại trả 404.
 def test_loan_detail_endpoint(client, member_headers, admin_headers):
     me = client.get("/auth/me", headers=member_headers).json()
 

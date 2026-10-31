@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { api } from '@/lib/api'
 import type { LoanDetail, LoanStatus } from '@/types'
 
+// Định dạng ngày giờ kiểu en-US, ví dụ 'Oct 31, 2026, 09:30 AM'.
 function formatDate(value: string) {
   return new Date(value).toLocaleString('en-US', {
     year: 'numeric',
@@ -28,6 +29,7 @@ function formatDate(value: string) {
   })
 }
 
+// Nhãn trạng thái phiếu: Returned (xám) / Overdue (đỏ) / Active (xanh lá).
 function StatusBadge({ status }: { status: LoanStatus }) {
   if (status === 'returned') {
     return (
@@ -59,12 +61,16 @@ interface LoanDetailDialogProps {
   onChanged?: () => void
 }
 
+// Hộp thoại chi tiết một phiếu mượn (sách, độc giả, ngày mượn / hạn trả / ngày trả).
+// Mở khi loanId khác null. Phiếu chưa trả thì có nút 'Mark as returned'; trả xong gọi onChanged
+// để trang cha tải lại dữ liệu.
 export function LoanDetailDialog({ loanId, onOpenChange, onChanged }: LoanDetailDialogProps) {
   const open = loanId !== null
   const [loan, setLoan] = useState<LoanDetail | null>(null)
   const [loading, setLoading] = useState(false)
   const [returning, setReturning] = useState(false)
 
+  // Mỗi khi loanId đổi: tải chi tiết phiếu từ API (GET /loans/{id}); lỗi thì báo và đóng hộp.
   useEffect(() => {
     if (loanId === null) {
       setLoan(null)
@@ -82,6 +88,7 @@ export function LoanDetailDialog({ loanId, onOpenChange, onChanged }: LoanDetail
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loanId])
 
+  // Ghi nhận trả sách (POST /loans/{id}/return), hiện thông báo lỗi từ backend nếu có.
   const handleReturn = async () => {
     if (!loan) return
     setReturning(true)

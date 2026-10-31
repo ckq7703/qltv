@@ -6,6 +6,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base
 
 
+# Tài khoản đăng nhập, role là 'admin' hoặc 'member'.
+# Chỉ lưu hash bcrypt của mật khẩu. member_id trỏ tới hồ sơ độc giả (NULL với admin).
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (

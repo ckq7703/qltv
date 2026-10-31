@@ -17,13 +17,17 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+# Tạo toàn bộ bảng chính theo đúng thứ tự phụ thuộc khóa ngoại
+# (bảng được tham chiếu phải tạo trước). downgrade() xóa theo thứ tự ngược lại.
 def upgrade() -> None:
+    # authors: tác giả
     op.create_table(
         "authors",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("full_name", sa.String(255), nullable=False),
     )
 
+    # categories: thể loại dạng cây (parent_id tự tham chiếu)
     op.create_table(
         "categories",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -31,6 +35,8 @@ def upgrade() -> None:
         sa.Column("parent_id", sa.Integer(), sa.ForeignKey("categories.id")),
     )
 
+    # books: đầu sách. search_vector (tsvector) phục vụ tìm kiếm full-text,
+    # được trigger ở migration 0004 tự cập nhật từ title.
     op.create_table(
         "books",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -47,6 +53,7 @@ def upgrade() -> None:
         ),
     )
 
+    # book_authors: bảng trung gian sách - tác giả (nhiều-nhiều), khóa chính ghép
     op.create_table(
         "book_authors",
         sa.Column(
@@ -63,6 +70,7 @@ def upgrade() -> None:
         ),
     )
 
+    # book_copies: bản sao vật lý. CHECK giới hạn trạng thái; version dùng cho optimistic locking.
     op.create_table(
         "book_copies",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -85,6 +93,7 @@ def upgrade() -> None:
         ),
     )
 
+    # members: hồ sơ độc giả (cột avatar_url được thêm ở migration 0005)
     op.create_table(
         "members",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -99,6 +108,7 @@ def upgrade() -> None:
         ),
     )
 
+    # loans: phiếu mượn. returned_at NULL = chưa trả; CHECK đảm bảo ngày trả >= ngày mượn.
     op.create_table(
         "loans",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -120,6 +130,7 @@ def upgrade() -> None:
         ),
     )
 
+    # users: tài khoản đăng nhập, role chỉ là 'admin' hoặc 'member'
     op.create_table(
         "users",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -130,6 +141,7 @@ def upgrade() -> None:
         sa.CheckConstraint("role IN ('admin', 'member')", name="chk_user_role"),
     )
 
+    # audit_log: nhật ký thay đổi (trigger ở migration 0002 tự ghi vào đây)
     op.create_table(
         "audit_log",
         sa.Column("id", sa.BigInteger(), primary_key=True),

@@ -128,6 +128,7 @@ Mở `.env` và **đổi các giá trị mặc định**, tối thiểu là `POS
 | `JWT_ALGORITHM` | `HS256` | Thuật toán ký |
 | `JWT_ACCESS_TTL_MINUTES` / `JWT_REFRESH_TTL_DAYS` | `30` / `7` | Thời hạn access/refresh token |
 | `BACKEND_PORT` / `FRONTEND_PORT` | `8000` / `5173` | Cổng công bố ra máy host |
+| `VITE_ALLOWED_HOSTS` | (trống) | Domain được phép truy cập frontend, phân tách bằng dấu phẩy. Xem [Truy cập qua domain riêng](#truy-cập-qua-domain-riêng) |
 
 Sinh nhanh một `JWT_SECRET` ngẫu nhiên:
 
@@ -195,6 +196,29 @@ docker compose exec redis redis-cli                       # redis-cli
 > ```
 >
 > Sau đó lặp lại Bước 3 đến Bước 5. Lệnh này **không thể hoàn tác**.
+
+### Truy cập qua domain riêng
+
+Mặc định frontend chỉ nhận truy cập qua `localhost` hoặc địa chỉ IP. Nếu mở bằng domain khác (qua reverse proxy, Cloudflare Tunnel, ngrok...), trình duyệt sẽ báo `Blocked request. This host is not allowed`. Khai báo domain trong `.env`:
+
+```env
+# Một hoặc nhiều domain, phân tách bằng dấu phẩy
+VITE_ALLOWED_HOSTS=thuvien.example.com,admin.example.com
+
+# Dấu chấm đầu khớp cả subdomain
+VITE_ALLOWED_HOSTS=.example.com
+
+# Cho phép mọi domain (chỉ nên dùng khi thử nghiệm)
+VITE_ALLOWED_HOSTS=all
+```
+
+Áp dụng bằng cách tạo lại container frontend:
+
+```bash
+docker compose up -d frontend
+```
+
+Không cần cấu hình CORS ở backend: trình duyệt chỉ gọi cùng domain với frontend, còn `/api`, `/static` và `/ws` được Vite chuyển tiếp tới backend trong mạng Docker. Nếu đặt sau reverse proxy (Nginx, Caddy, Traefik), hãy chuyển tiếp cả WebSocket (`/ws`) và giữ nguyên header `Host`.
 
 ### Ghi chú về chế độ chạy
 

@@ -1,3 +1,4 @@
+# Endpoint thành viên: danh sách có tìm kiếm / phân trang, thêm mới (chỉ admin)
 import math
 from typing import Literal, Optional
 
@@ -19,12 +20,15 @@ SortField = Literal["full_name", "joined_at"]
 SORT_COLUMNS = {"full_name": Member.full_name, "joined_at": Member.joined_at}
 
 
+# Chuyển Member ORM sang MemberOut, gắn thêm username của tài khoản (nếu có).
 def _to_member_out(member: Member, username: Optional[str]) -> MemberOut:
     out = MemberOut.model_validate(member)
     out.username = username
     return out
 
 
+# Tra username của nhiều thành viên bằng 1 câu truy vấn (tránh gọi DB từng người).
+# Trả về dict {member_id: username}.
 def _usernames_by_member_id(db: Session, member_ids: list[int]) -> dict[int, str]:
     if not member_ids:
         return {}
@@ -34,6 +38,8 @@ def _usernames_by_member_id(db: Session, member_ids: list[int]) -> dict[int, str
     return {member_id: username for member_id, username in rows}
 
 
+# Danh sách thành viên, tìm theo tên hoặc email, sắp xếp và phân trang.
+# Endpoint này không yêu cầu đăng nhập.
 @router.get("", response_model=Page[MemberOut])
 def list_members(
     search: Optional[str] = None,
@@ -73,6 +79,9 @@ def list_members(
     }
 
 
+# Thêm thành viên (chỉ admin). Nếu gửi cả username + password thì tạo luôn tài khoản
+# đăng nhập role=member; chỉ gửi một trong hai -> 422, username đã tồn tại -> 409.
+# Member và User được tạo trong cùng 1 transaction (lỗi thì rollback cả hai).
 @router.post("", response_model=MemberOut, status_code=201)
 def create_member(
     payload: MemberCreate, db: Session = Depends(get_db), _admin: dict = Depends(require_admin)

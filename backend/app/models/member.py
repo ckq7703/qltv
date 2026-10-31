@@ -7,6 +7,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
 
+# Hồ sơ độc giả của thư viện. Khác với User (tài khoản đăng nhập):
+# một User có thể trỏ tới một Member qua users.member_id.
 class Member(Base):
     __tablename__ = "members"
 

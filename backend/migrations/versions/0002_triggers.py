@@ -15,7 +15,10 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+# Tạo 4 trigger. Phần đồng bộ trạng thái bản sao nằm ở DB nên mọi đường ghi vào
+# loans (API, script, SQL thủ công) đều giữ book_copies nhất quán.
 def upgrade() -> None:
+    # Trigger 1: có loan mới -> bản sao chuyển 'borrowed', version + 1
     op.execute(
         """
         CREATE OR REPLACE FUNCTION fn_after_loan_insert() RETURNS TRIGGER AS $$
@@ -35,6 +38,8 @@ def upgrade() -> None:
         """
     )
 
+    # Trigger 2: loan được trả (returned_at từ NULL sang có giá trị)
+    # -> bản sao về 'available', version + 1
     op.execute(
         """
         CREATE OR REPLACE FUNCTION fn_after_loan_return() RETURNS TRIGGER AS $$
@@ -56,6 +61,8 @@ def upgrade() -> None:
         """
     )
 
+    # Trigger 3: ghi audit_log mỗi khi INSERT/UPDATE/DELETE trên books.
+    # to_jsonb(OLD/NEW) chụp cả dòng thành JSON; INSERT chỉ có new_data, DELETE chỉ có old_data.
     op.execute(
         """
         CREATE OR REPLACE FUNCTION fn_audit_books() RETURNS TRIGGER AS $$
@@ -83,6 +90,7 @@ def upgrade() -> None:
         """
     )
 
+    # Trigger 4: tương tự trigger 3 nhưng cho bảng loans
     op.execute(
         """
         CREATE OR REPLACE FUNCTION fn_audit_loans() RETURNS TRIGGER AS $$

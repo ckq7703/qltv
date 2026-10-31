@@ -1,3 +1,4 @@
+# Danh sách sách phải chứa dữ liệu seed (có "Foundation").
 def test_list_books_returns_seed_data(client):
     resp = client.get("/books", params={"page_size": 100})
     assert resp.status_code == 200
@@ -6,6 +7,7 @@ def test_list_books_returns_seed_data(client):
     assert body["total"] >= 1
 
 
+# Tìm kiếm full-text theo tên phải trả về đúng sách.
 def test_search_books_full_text(client):
     resp = client.get("/books", params={"search": "Foundation"})
     assert resp.status_code == 200
@@ -13,6 +15,7 @@ def test_search_books_full_text(client):
     assert "Foundation" in titles
 
 
+# Chưa đăng nhập mà tạo sách phải bị từ chối (401/403).
 def test_create_book_requires_admin(client):
     resp = client.post(
         "/books",
@@ -21,6 +24,7 @@ def test_create_book_requires_admin(client):
     assert resp.status_code in (401, 403)
 
 
+# Admin tạo sách 2 bản sao -> tổng và số bản sao rảnh đều bằng 2.
 def test_create_book_as_admin(client, admin_headers):
     import uuid
 

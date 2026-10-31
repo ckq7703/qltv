@@ -15,7 +15,9 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+# Tạo 3 view và 1 materialized view phục vụ thống kê (router stats.py, loans.py).
 def upgrade() -> None:
+    # Xếp hạng sách theo số lần được mượn (RANK: đồng hạng thì cùng thứ hạng, có nhảy bậc)
     op.execute(
         """
         CREATE VIEW v_top_borrowed_books AS
@@ -28,6 +30,7 @@ def upgrade() -> None:
         """
     )
 
+    # Các phiếu quá hạn: chưa trả và due_date đã qua; overdue_by = thời gian đã quá hạn
     op.execute(
         """
         CREATE VIEW v_overdue_loans AS
@@ -39,6 +42,7 @@ def upgrade() -> None:
         """
     )
 
+    # Xếp hạng độc giả theo số lần mượn (DENSE_RANK: đồng hạng thì không nhảy bậc)
     op.execute(
         """
         CREATE VIEW v_active_members AS
@@ -50,6 +54,8 @@ def upgrade() -> None:
         """
     )
 
+    # Thống kê mượn theo tháng. Materialized view lưu sẵn kết quả nên truy vấn nhanh,
+    # nhưng phải REFRESH thủ công (POST /stats/refresh-monthly) mới thấy số liệu mới.
     op.execute(
         """
         CREATE MATERIALIZED VIEW mv_monthly_stats AS
