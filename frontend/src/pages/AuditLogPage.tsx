@@ -26,6 +26,15 @@ const OPERATION_VARIANT = {
   DELETE: 'destructive',
 } as const
 
+// Nhãn hiển thị trong hai ô lọc (giá trị 'all' = không lọc).
+const TABLE_LABELS: Record<string, string> = { all: 'All tables', books: 'Books', loans: 'Loans' }
+const OPERATION_LABELS: Record<string, string> = {
+  all: 'All actions',
+  INSERT: 'Insert',
+  UPDATE: 'Update',
+  DELETE: 'Delete',
+}
+
 // Định dạng thời điểm thay đổi hiển thị trong bảng.
 function formatDate(value: string) {
   return new Date(value).toLocaleString('en-US')
@@ -139,7 +148,7 @@ export function AuditLogPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Select value={tableName} onValueChange={(v) => v && setTableName(v)}>
             <SelectTrigger className="w-36">
-              <SelectValue />
+              <SelectValue>{(v: string) => TABLE_LABELS[v]}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All tables</SelectItem>
@@ -149,7 +158,7 @@ export function AuditLogPage() {
           </Select>
           <Select value={operation} onValueChange={(v) => v && setOperation(v)}>
             <SelectTrigger className="w-36">
-              <SelectValue />
+              <SelectValue>{(v: string) => OPERATION_LABELS[v]}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All actions</SelectItem>
